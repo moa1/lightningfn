@@ -80,34 +80,38 @@ jit_int32_t fn_jit_allocai(jit_state_t *_jit, jit_int32_t length) {
 }
 """
 
-def jit_getarg(name,type):
+def jit_getarg(name,type,u_type):
 	print """
-void fn_jit_getarg"""+name+"""(jit_state_t *_jit, jit_int32_t u, jit_node_t *v) {
+void fn_jit_getarg"""+name+"""(jit_state_t *_jit, """+u_type+""" u, jit_node_t *v) {
 	_jit_getarg"""+type+"""(_jit, u, v);
 }"""
 
-for type in ["_c","_uc","_s","_us","_i","_f","_d"]:
-	jit_getarg(type,type)
+for type in ["_c","_uc","_s","_us","_i"]:
+	jit_getarg(type,type,"jit_gpr_t")
+for type in ["_f","_d"]:
+	jit_getarg(type,type,"jit_fpr_t")
 print """
 #if __WORDSIZE == 32"""
-jit_getarg("","_i")
+jit_getarg("","_i","jit_gpr_t")
 print """
 #else"""
 for type in ["_ui","_l"]:
-	jit_getarg(type,type)
-jit_getarg("","_l")
+	jit_getarg(type,type,"jit_gpr_t")
+jit_getarg("","_l","jit_gpr_t")
 print """
 #endif"""
 
 
-def jit_putargr(name,type):
+def jit_putargr(name,type,u_type):
 	print """
-void fn_jit_putargr"""+name+"""(jit_state_t *_jit, jit_int32_t u, jit_node_t *v) {
+void fn_jit_putargr"""+name+"""(jit_state_t *_jit, """+u_type+""" u, jit_node_t *v) {
 	_jit_putargr"""+type+"""(_jit, u, v);
 }"""
 
-for type in ["","_f","_d"]:
-	jit_putargr(type,type)
+for type in [""]:
+	jit_putargr(type,type,"jit_gpr_t")
+for type in ["_f","_d"]:
+	jit_putargr(type,type,"jit_fpr_t")
 
 
 print """
@@ -130,13 +134,13 @@ void fn_jit_prepare(jit_state_t *_jit) {
 void fn_jit_ellipsis(jit_state_t *_jit) {	
 	_jit_ellipsis(_jit);
 }
-void fn_jit_pushargr(jit_state_t *_jit, jit_int32_t u) {
+void fn_jit_pushargr(jit_state_t *_jit, jit_gpr_t u) {
 	_jit_pushargr(_jit,u);
 }
 void fn_jit_pushargi(jit_state_t *_jit, jit_word_t u) {
 	_jit_pushargi(_jit, u);
 }
-void fn_jit_finishr(jit_state_t *_jit, jit_int32_t r0) {
+void fn_jit_finishr(jit_state_t *_jit, jit_gpr_t r0) {
 	_jit_finishr(_jit, r0);
 }
 jit_node_t *fn_jit_finishi(jit_state_t *_jit, jit_pointer_t i0) {
@@ -145,7 +149,7 @@ jit_node_t *fn_jit_finishi(jit_state_t *_jit, jit_pointer_t i0) {
 void fn_jit_ret(jit_state_t *_jit) {
 	_jit_ret(_jit);
 }
-void fn_jit_retr(jit_state_t *_jit, jit_int32_t u) {
+void fn_jit_retr(jit_state_t *_jit, jit_gpr_t u) {
 	_jit_retr(_jit, u);
 }
 void fn_jit_reti(jit_state_t *_jit, jit_word_t u) {
@@ -153,22 +157,24 @@ void fn_jit_reti(jit_state_t *_jit, jit_word_t u) {
 }"""
 
 
-def jit_retval(name,type):
+def jit_retval(name,type,r0_type):
 	print """
-void fn_jit_retval"""+name+"""(jit_state_t *_jit, jit_int32_t r0) {
+void fn_jit_retval"""+name+"""(jit_state_t *_jit, """+r0_type+""" r0) {
 	_jit_retval"""+type+"""(_jit, r0);
 }"""
 
-for type in ["_c","_uc","_s","_us","_i","_f","_d"]:
-	jit_retval(type,type)
+for type in ["_c","_uc","_s","_us","_i"]:
+	jit_retval(type,type,"jit_gpr_t")
+for type in ["_f","_d"]:
+	jit_retval(type,type,"jit_fpr_t")
 print """
 #if __WORDSIZE == 32"""
-jit_retval("","_i")
+jit_retval("","_i","jit_gpr_t")
 print """
 #else"""
 for type in ["_ui","_l"]:
-	jit_retval(type,type)
-jit_retval("","_l")
+	jit_retval(type,type,"jit_gpr_t")
+jit_retval("","_l","jit_gpr_t")
 print """
 #endif"""
 
@@ -394,6 +400,9 @@ jit_node_t *fn_jit_"""+name+"""(jit_state_t *_jit, jit_word_t u, jit_word_t v, j
 #grep -E 'jit_new_node_www[ \t\n]*\(' lightning.h | grep define | sed -E 's/^.* jit_([^(]+)\(.*$/"\1",/g' | tr -d "\n"
 for code in ["addr","addi","addcr","addci","addxr","addxi","subr","subi","subcr","subci","subxr","subxi","rsbi","mulr","muli","divr","divi","divr_u","divi_u","remr","remi","remr_u","remi_u","andr","andi","orr","ori","xorr","xori","lshr","lshi","rshr","rshi","rshr_u","rshi_u","ltr","lti","ltr_u","lti_u","ler","lei","ler_u","lei_u","eqr","eqi","ger","gei","ger_u","gei_u","gtr","gti","gtr_u","gti_u","ner","nei","ldxr_c","ldxi_c","ldxr_uc","ldxi_uc","ldxr_s","ldxi_s","ldxr_us","ldxi_us","ldxr_i","ldxi_i","stxr_c","stxi_c","stxr_s","stxi_s","stxr_i","stxi_i","addr_f","subr_f","mulr_f","divr_f","ltr_f","ler_f","eqr_f","ger_f","gtr_f","ner_f","unltr_f","unler_f","uneqr_f","unger_f","ungtr_f","ltgtr_f","ordr_f","unordr_f","ldxr_f","ldxi_f","stxr_f","stxi_f","addr_d","subr_d","mulr_d","divr_d","ltr_d","ler_d","eqr_d","ger_d","gtr_d","ner_d","unltr_d","unler_d","uneqr_d","unger_d","ungtr_d","ltgtr_d","ordr_d","unordr_d","ldxr_d","ldxi_d","stxr_d","stxi_d","movr_ww_d","movr_d_ww"]:
 	jit_new_node_www(code, code)
+h = {"rsbr":"subr","rsbr_f":"subr_f","rsbr_d":"subr_d"}
+for name in h:
+	jit_new_node_www(name, h[name])
 print """
 #if __WORDSIZE == 32"""
 h = {"ldxr":"ldxr_i","ldxi":"ldxi_i"}
@@ -501,4 +510,7 @@ jit_bool_t fn_jit_get_note(jit_state_t *_jit,jit_pointer_t n,char **u,char **v,i
 void fn_jit_disassemble(jit_state_t *_jit) {	
 	_jit_disassemble(_jit);
 }
+
+void fn_jit_set_memory_functions(jit_alloc_func_ptr,jit_realloc_func_ptr,jit_free_func_ptr);
+void fn_jit_get_memory_functions(jit_alloc_func_ptr*,jit_realloc_func_ptr*,jit_free_func_ptr*);
 """
