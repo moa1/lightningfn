@@ -24,10 +24,10 @@ jit_int8_t fn_jit_f_num() {
 /*
  * Prototypes
  */
-void fn_init_jit(const char *progname) {
+void init_fn_jit(const char *progname) {
 	init_jit(progname);
 }
-void fn_finish_jit(void) {
+void finish_fn_jit(void) {
 	finish_jit();
 }
 jit_state_t *fn_jit_new_state(void) {
@@ -276,8 +276,7 @@ for code in ["live","align","jmpr","callr"]:
 
 def jit_new_node_p(name,code):
 	print """
-jit_node_t *fn_jit_"""+name+"""(jit_state_t *_jit, jit_pointer_t u)
-{
+jit_node_t *fn_jit_"""+name+"""(jit_state_t *_jit, jit_pointer_t u) {
 	return _jit_new_node_p(_jit, jit_code_"""+code+""",u);
 }"""
 
@@ -344,8 +343,7 @@ print """
 
 def jit_new_node_pw(name,code):
 	print """
-jit_node_t *fn_jit_"""+name+"""(jit_state_t *_jit, jit_pointer_t u, jit_word_t v)
-{
+jit_node_t *fn_jit_"""+name+"""(jit_state_t *_jit, jit_pointer_t u, jit_word_t v) {
 	return _jit_new_node_pw(_jit, jit_code_"""+code+""", u, v);
 }"""
 
