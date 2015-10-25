@@ -9,6 +9,7 @@ lightningfn.h: lightningfn.c head.lightningfn.h
 	cat head.lightningfn.h lightningfn.h.body > lightningfn.h
 
 #for linking to the shared library lightning.so: gcc -I ~/soft/lightning-2.1.0/include/ -L ~/soft/lightning-2.1.0/lib/.libs/ -llightning -shared -o lightningfn.so ./lightningfn.c
+# on 64-bit, compile lightning with "./configure --with-pic", and compile lightningfn with --fPIC: gcc -fPIC -I ../lightning-2.1.0/include/ -shared -o lightningfn.so ./lightningfn.c ../lightning-2.1.0/lib/.libs/liblightning.a
 lightningfn.so: lightningfn.c
 	gcc -I ../lightning-2.1.0/include/ -shared -o lightningfn.so ./lightningfn.c ../lightning-2.1.0/lib/.libs/liblightning.a
 
