@@ -114,3 +114,6 @@ typedef void  (*jit_free_func_ptr)	(void*);
 
 void init_fn_jit(const char *progname);
 void finish_fn_jit(void);
+
+/* Functions with the standard "fn_jit_" prefix */
+
