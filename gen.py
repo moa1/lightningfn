@@ -2,13 +2,13 @@
 
 print """#include "lightning.h"
 
-jit_int8_t fn_jit_r(jit_int8_t index) {
+jit_gpr_t fn_jit_r(jit_int8_t index) {
 	return JIT_R(index);
 }
-jit_int8_t fn_jit_v(jit_int8_t index) {
+jit_gpr_t fn_jit_v(jit_int8_t index) {
 	return JIT_V(index);
 }
-jit_int8_t fn_jit_f(jit_int8_t index) {
+jit_fpr_t fn_jit_f(jit_int8_t index) {
 	return JIT_F(index);
 }
 jit_int8_t fn_jit_r_num() {
@@ -285,6 +285,10 @@ for code in ["jmpi","calli"]:
 	jit_new_node_p(code,code)
 
 
+def call_with_hash(function, h):
+	h_names = sorted(h.keys())
+	for name in h_names:
+		function(name, h[name])
 
 def jit_new_node_ww(name,code):
 	print """
@@ -296,20 +300,17 @@ jit_node_t *fn_jit_"""+name+"""(jit_state_t *_jit, jit_word_t u, jit_word_t v) {
 for code in ["negr","comr","movr","movi","extr_c","extr_uc","extr_s","extr_us","htonr_us","htonr_ui","ldr_c","ldr_uc","ldr_s","ldr_us","ldr_i","str_c","str_s","str_i","negr_f","absr_f","sqrtr_f","truncr_f_i","extr_f","extr_d_f","movr_f","ldr_f","str_f","negr_d","absr_d","sqrtr_d","truncr_d_i","extr_d","extr_f_d","movr_d","ldr_d","str_d","movr_w_f","movr_w_d","movr_f_w","movr_d_w"]:
 	jit_new_node_ww(code,code)
 h = {"ntohr_us":"htonr_us","ntohr_ui":"htonr_ui"}
-for name in h:
-	jit_new_node_ww(name,h[name])
+call_with_hash(jit_new_node_ww, h)
 print """
 #if __WORDSIZE == 32"""
 h = {"htonr":"htonr_ui","ntohr":"htonr_ui","str":"str_i","truncr_f":"truncr_f_i","truncr_d":"truncr_d_i"}
-for name in h:
-	jit_new_node_ww(name,h[name])
+call_with_hash(jit_new_node_ww, h)
 print """
 #else"""
 for code in ["extr_i","extr_ui","ldr_ui","ldr_l","str_l","truncr_f_l","truncr_d_l"]:
 	jit_new_node_ww(code,code)
 h = {"htonr_ul":"htonr_ul","ntohr_ul":"htonr_ul","htonr":"htonr_ul","ntohr":"htonr_ul","str":"str_l","truncr_f":"truncr_f_l","truncr_d":"truncr_d_l"}
-for name in h:
-	jit_new_node_ww(name,h[name])
+call_with_hash(jit_new_node_ww, h)
 print """
 #endif"""
 
@@ -327,15 +328,13 @@ for code in ["ldi_c","ldi_uc","ldi_s","ldi_us","ldi_i","ldi_f","ldi_d"]:
 print """
 #if __WORDSIZE == 32"""
 h = {"ldr":"ldr_i","ldi":"ldi_i"}
-for name in h:
-	jit_new_node_wp(name,h[name])
+call_with_hash(jit_new_node_wp, h)
 print """
 #else"""
 for code in ["ldi_ui","ldi_l"]:
 	jit_new_node_wp(code,code)
 h = {"ldr":"ldr_l","ldi":"ldi_l"}
-for name in h:
-	jit_new_node_wp(name,h[name])
+call_with_hash(jit_new_node_wp, h)
 print """
 #endif"""
 
@@ -353,15 +352,13 @@ for code in ["sti_c","sti_s","sti_i","sti_f","sti_d"]:
 print """
 #if __WORDSIZE == 32"""
 h = {"sti":"sti_i"}
-for name in h:
-	jit_new_node_pw(name,h[name])
+call_with_hash(jit_new_node_pw, h)
 print """
 #else"""
 for code in ["sti_l"]:
 	jit_new_node_pw(code,code)
 h = {"sti":"sti_l"}
-for name in h:
-	jit_new_node_pw(name,h[name])
+call_with_hash(jit_new_node_pw, h)
 print """
 #endif"""
 
@@ -399,20 +396,17 @@ jit_node_t *fn_jit_"""+name+"""(jit_state_t *_jit, jit_word_t u, jit_word_t v, j
 for code in ["addr","addi","addcr","addci","addxr","addxi","subr","subi","subcr","subci","subxr","subxi","rsbi","mulr","muli","divr","divi","divr_u","divi_u","remr","remi","remr_u","remi_u","andr","andi","orr","ori","xorr","xori","lshr","lshi","rshr","rshi","rshr_u","rshi_u","ltr","lti","ltr_u","lti_u","ler","lei","ler_u","lei_u","eqr","eqi","ger","gei","ger_u","gei_u","gtr","gti","gtr_u","gti_u","ner","nei","ldxr_c","ldxi_c","ldxr_uc","ldxi_uc","ldxr_s","ldxi_s","ldxr_us","ldxi_us","ldxr_i","ldxi_i","stxr_c","stxi_c","stxr_s","stxi_s","stxr_i","stxi_i","addr_f","subr_f","mulr_f","divr_f","ltr_f","ler_f","eqr_f","ger_f","gtr_f","ner_f","unltr_f","unler_f","uneqr_f","unger_f","ungtr_f","ltgtr_f","ordr_f","unordr_f","ldxr_f","ldxi_f","stxr_f","stxi_f","addr_d","subr_d","mulr_d","divr_d","ltr_d","ler_d","eqr_d","ger_d","gtr_d","ner_d","unltr_d","unler_d","uneqr_d","unger_d","ungtr_d","ltgtr_d","ordr_d","unordr_d","ldxr_d","ldxi_d","stxr_d","stxi_d","movr_ww_d","movr_d_ww"]:
 	jit_new_node_www(code, code)
 h = {"rsbr":"subr","rsbr_f":"subr_f","rsbr_d":"subr_d"}
-for name in h:
-	jit_new_node_www(name, h[name])
+call_with_hash(jit_new_node_www, h)
 print """
 #if __WORDSIZE == 32"""
 h = {"ldxr":"ldxr_i","ldxi":"ldxi_i"}
-for name in h:
-	jit_new_node_www(name, h[name])
+call_with_hash(jit_new_node_www, h)
 print """
 #else"""
 for code in ["ldxr_ui","ldxi_ui","ldxr_l","ldxi_l","stxr_l","stxi_l"]:
 	jit_new_node_www(code, code)
 h = {"ldxr":"ldxr_l","ldxi":"ldxi_l","stxr":"stxr_l","stxi":"stxi_l"}
-for name in h:
-	jit_new_node_www(name, h[name])
+call_with_hash(jit_new_node_www, h)
 print """
 #endif"""
 
@@ -436,7 +430,7 @@ jit_node_t *fn_jit_"""+name+"""(jit_state_t *_jit, jit_word_t u, jit_word_t v, j
 	return _jit_new_node_wwf(_jit, jit_code_"""+code+""",u,v,w);
 }"""
 
-#grep -E 'jit_new_node_qww[ \t\n]*\(' lightning.h | grep define | sed -E 's/^.* jit_([^(]+)\(.*$/"\1",/g' | tr -d "\n"
+#grep -E 'jit_new_node_wwf[ \t\n]*\(' lightning.h | grep define | sed -E 's/^.* jit_([^(]+)\(.*$/"\1",/g' | tr -d "\n"
 for code in ["addi_f","subi_f","rsbi_f","muli_f","divi_f","lti_f","lei_f","eqi_f","gei_f","gti_f","nei_f","unlti_f","unlei_f","uneqi_f","ungei_f","ungti_f","ltgti_f","ordi_f","unordi_f"]:
 	jit_new_node_wwf(code,code)
 
