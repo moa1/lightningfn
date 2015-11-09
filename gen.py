@@ -503,6 +503,10 @@ void fn_jit_disassemble(jit_state_t *_jit) {
 	_jit_disassemble(_jit);
 }
 
-void fn_jit_set_memory_functions(jit_alloc_func_ptr,jit_realloc_func_ptr,jit_free_func_ptr);
-void fn_jit_get_memory_functions(jit_alloc_func_ptr*,jit_realloc_func_ptr*,jit_free_func_ptr*);
+void fn_jit_set_memory_functions(jit_alloc_func_ptr alloc_func_ptr,jit_realloc_func_ptr realloc_func_ptr,jit_free_func_ptr free_func_ptr) {
+	jit_set_memory_functions(alloc_func_ptr, realloc_func_ptr, free_func_ptr);
+}
+void fn_jit_get_memory_functions(jit_alloc_func_ptr *alloc_func_ptr,jit_realloc_func_ptr *realloc_func_ptr,jit_free_func_ptr *free_func_ptr) {
+	jit_get_memory_functions(alloc_func_ptr, realloc_func_ptr, free_func_ptr);
+}
 """

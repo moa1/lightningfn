@@ -3,9 +3,7 @@
   :author "Anton Moll"
   :license "LGPL3"
 
-  :depends-on (:cl-autowrap
-               :cl-plus-c
-	       :trivial-garbage)
+  :depends-on (:cffi :trivial-garbage)
 
   :serial t
   :components
