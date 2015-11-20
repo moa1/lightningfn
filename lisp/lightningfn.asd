@@ -7,12 +7,8 @@
 
   :serial t
   :components
-  ((:module autowrap-spec
-	    :pathname "spec"
-	    :components
-	    ((:static-file "lightningfn.h")))
-   (:file "package")
+  ((:file "package")
    (:file "library")
-   (:file "autowrap")
+   (:file "ffi")
    (:file "interface")
    ))

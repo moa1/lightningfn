@@ -9,7 +9,7 @@ To avoid collisions between function names in GNU lightning and functions in LIS
   disassemble = disassemble-jit
 Author: Anton Moll")
   (:use #:cl #:lightningfn-ffi #:cffi)
-  (:shadow #:print #:disassemble)
+  ;;(:shadow #:print #:disassemble)
   ;; (:import-from :cffi
   ;; 		#:mem-ref #:with-foreign-objects #:with-foreign-object
   ;; 		#:foreign-alloc #:foreign-free #:null-pointer-p)

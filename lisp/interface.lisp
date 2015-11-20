@@ -160,7 +160,7 @@ Example:
       (lightningfn:addi r r 1)
       (lightningfn:retr r)
       (let ((incr (lightningfn:emit)))
-	(lightningfn:clear-state)
+	;;(lightningfn:clear-state) ;#'CLEAR-STATE may not be called twice for an object! (it will be called in the finalizer)
 	(cffi:foreign-funcall-pointer incr (:convention :stdcall) :int 5 :int)))))
 |#
 
@@ -300,3 +300,30 @@ Which symbol with name "SET!" should be accessible in #1#?
 (ql:quickload :lightningfn)
 (ql:quickload :utils)
 |#
+
+#|
+;; defining and calling a callback
+(cffi:defcallback callback1 :int ((a :int) (b :float) (c :float))
+  (format t "a:~A b:~A c:~A~%" a b c)
+  (let ((res (round (+ a (* b c)))))
+    (format t "res:~A~%" res)
+    res))
+(lightningfn:with-jit ()
+  (lightningfn:prolog)
+  (set! in (lightningfn:arg))
+  (set! r (lightningfn:reg-r 0))
+  (lightningfn:getarg-i r in)
+  (lightningfn:addi r r 1)
+  (lightningfn:prepare)
+  (lightningfn:pushargr r)
+  (lightningfn:pushargi-f 3.50)
+  (lightningfn:pushargi-f 10.2)
+  (lightningfn:finishi (cffi:callback callback1))
+  (lightningfn:retval r)
+  (lightningfn:retr r)
+  (lightningfn:epilog)
+  (set! incr (lightningfn:emit))
+  (cffi:foreign-funcall-pointer incr (:convention :stdcall) :int 5 :int))
+|#
+
+;; TODO: It seems that calling #'LIGHTNINGFN-FFI::FN-JIT-CLEAR-STATE-RAW after #'LIGHTNINGFN-FFI::FN-JIT-EMIT has been called (and not calling FN-JIT-CLEAR-STATE-RAW in the finalizer, because otherwise there are memory faults) speeds up the "incr" example above quite a bit, from 5.5 needed time to 3.5 needed time. I should change the interface by writing a macro that automates that, and then exporting that macro and remove the other exported macros.
