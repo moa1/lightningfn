@@ -247,7 +247,7 @@ Example:
   (lightningfn:addi r r 1)
   (lightningfn:retr r)
   (set! incr (lightningfn:emit))
-  (lightningfn:clear-state)
+  ;;(lightningfn:clear-state) ;#'CLEAR-STATE may not be called twice for an object! (it will be called in the finalizer)
   (cffi:foreign-funcall-pointer incr (:convention :stdcall) :int 5 :int))
 
 or when (use-package :lightning)
@@ -259,7 +259,7 @@ or when (use-package :lightning)
   (addi r r 1)
   (retr r)
   (set! incr (emit))
-  (clear-state)
+  ;;(clear-state) ;#'CLEAR-STATE may not be called twice for an object! (it will be called in the finalizer)
   (cffi:foreign-funcall-pointer incr (:convention :stdcall) :int 5 :int))
 |#
 

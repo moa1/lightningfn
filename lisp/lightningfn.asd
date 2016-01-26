@@ -1,5 +1,5 @@
 (asdf:defsystem #:lightningfn
-  :description "Bindings for GNU lightning using c2ffi."
+  :description "Bindings for GNU lightning using CFFI and TRIVIAL-GARBAGE."
   :author "Anton Moll"
   :license "LGPL3"
 
