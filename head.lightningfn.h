@@ -1,7 +1,8 @@
 //./c2ffi --std=c99 -i /usr/include/ -i /usr/include/i386-linux-gnu/ -i /usr/include/linux/ -o lightningfn ../../lightningfn/lightningfn.h
 
 // size_t seems not to be defined by "--std=c99".
-typedef unsigned int size_t;
+// not needed anymore because we don't need c2ffi anymore:
+//typedef unsigned int size_t;
 
 //#include <unistd.h>
 //#include <stdlib.h>
