@@ -1,8 +1,9 @@
 (cl:in-package :lightningfn-ffi)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
+  (defcfun "fn_jit_wordsize" :int)
   (when (not (boundp '+wordsize+))
-    (defconstant +wordsize+ 32)))
+    (defconstant +wordsize+ (fn-jit-wordsize))))
 
 (defmacro if-wordsize-32 (&body body)
   `(eval-when (:compile-toplevel :load-toplevel :execute)
@@ -138,7 +139,7 @@
 (if-wordsize-64
   (def-getarg ui)
   (def-getarg l)
-  (def-getarg "" :name "_l"))
+  (def-getarg "" :name "l"))
 
 (defmacro def-putargr (type &key (reg-type 'jit-gpr-t))
   `(def-call-jit-type "putargr" ,type (:void (jit jit-state) (reg ,reg-type) (arg jit-node-t-ptr))))
@@ -174,7 +175,7 @@
 (if-wordsize-64
   (def-retval ui)
   (def-retval l)
-  (def-retval "" :name "_l"))
+  (def-retval "" :name "l"))
 
 (defcfun* "fn_jit_epilog" :void (jit jit-state))
 (defcfun* "fn_jit_patch" :void (jit jit-state) (addr jit-node-t-ptr))

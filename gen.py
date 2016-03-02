@@ -2,6 +2,10 @@
 
 print """#include "lightning.h"
 
+int fn_jit_wordsize() {
+	return __WORDSIZE;
+}
+
 jit_gpr_t fn_jit_r(jit_int8_t index) {
 	return JIT_R(index);
 }
