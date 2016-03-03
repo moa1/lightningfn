@@ -66,7 +66,7 @@ If any of ALLOC-FUNCTION, REALLOC-FUNCTION, or FREE-FUNCTION are non-NIL, they w
       (lightningfn-ffi::fn-jit-addi jit r r 1)
       (lightningfn-ffi::fn-jit-retr jit r)
       (let ((incr (lightningfn-ffi::fn-jit-emit jit)))
-	(cffi:foreign-funcall-pointer incr (:convention :stdcall) :int 5 :int)))))
+	(cffi:foreign-funcall-pointer incr (:convention :cdecl) :int 5 :int)))))
 |#
 
 (defun new-state ()
@@ -161,7 +161,7 @@ Example:
       (lightningfn:retr r)
       (let ((incr (lightningfn:emit)))
 	;;(lightningfn:clear-state) ;#'CLEAR-STATE may not be called twice for an object! (it will be called in the finalizer)
-	(cffi:foreign-funcall-pointer incr (:convention :stdcall) :int 5 :int)))))
+	(cffi:foreign-funcall-pointer incr (:convention :cdecl) :int 5 :int)))))
 |#
 
 ;;;; Convenience macros
@@ -248,7 +248,7 @@ Example:
   (lightningfn:retr r)
   (set! incr (lightningfn:emit))
   ;;(lightningfn:clear-state) ;#'CLEAR-STATE may not be called twice for an object! (it will be called in the finalizer)
-  (cffi:foreign-funcall-pointer incr (:convention :stdcall) :int 5 :int))
+  (cffi:foreign-funcall-pointer incr (:convention :cdecl) :int 5 :int))
 
 or when (use-package :lightning)
 (with-jit ()
@@ -260,7 +260,7 @@ or when (use-package :lightning)
   (retr r)
   (set! incr (emit))
   ;;(clear-state) ;#'CLEAR-STATE may not be called twice for an object! (it will be called in the finalizer)
-  (cffi:foreign-funcall-pointer incr (:convention :stdcall) :int 5 :int))
+  (cffi:foreign-funcall-pointer incr (:convention :cdecl) :int 5 :int))
 |#
 
 #|
@@ -323,7 +323,7 @@ Which symbol with name "SET!" should be accessible in #1#?
   (lightningfn:retr r)
   (lightningfn:epilog)
   (set! incr (lightningfn:emit))
-  (cffi:foreign-funcall-pointer incr (:convention :stdcall) :int 5 :int))
+  (cffi:foreign-funcall-pointer incr (:convention :cdecl) :int 5 :int))
 |#
 
 ;; TODO: It seems that calling #'LIGHTNINGFN-FFI::FN-JIT-CLEAR-STATE-RAW after #'LIGHTNINGFN-FFI::FN-JIT-EMIT has been called (and not calling FN-JIT-CLEAR-STATE-RAW in the finalizer, because otherwise there are memory faults) speeds up the "incr" example above quite a bit, from 5.5 needed time to 3.5 needed time. I should change the interface by writing a macro that automates that, and then exporting that macro and remove the other exported macros.
