@@ -39,7 +39,7 @@ int incr(int x)
 
 int main(int argc, char *argv[])
 {
-	init_jit(argv[0]);
+	init_fn_jit(argv[0]);
 
 	int num_seconds=5;
 	clock_t start=clock(), now;
@@ -56,6 +56,6 @@ int main(int argc, char *argv[])
 	// loop to be able to see in top how much memory the process uses
 	while(1) {}
 	
-	finish_jit();
+	finish_fn_jit();
 	return 0;
 }

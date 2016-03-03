@@ -13,10 +13,10 @@ lightningfn.h: lightningfn.c head.lightningfn.h
 liblightningfn.so: lightningfn.c
 	gcc -I ../lightning-2.1.0/include/ -shared -o liblightningfn.so ./lightningfn.c ../lightning-2.1.0/lib/.libs/liblightning.a
 
-examples:
+examples: examples.c lightningfn.h
 	gcc -l lightning -L ../lightning-2.1.0/lib/.libs/ -I ../lightning-2.1.0/include/ -o examples examples.c
 
-examplesfn:
+examplesfn: examplesfn.c lightningfn.h
 	gcc -I . -L . -l lightningfn -o examplesfn examplesfn.c
 
 clean:
