@@ -87,13 +87,15 @@ This function must not be called twice for a given JIT. If #'NEW-STATE is called
   (lightningfn-ffi::fn-jit-clear-state-unwrapped (lightningfn-ffi::jit-state-ptr jit)))
 
 (defun reg-r (reg-index)
-  "Return the caller-save register with index REG-INDEX."
+  "Return the caller-save register with index REG-INDEX.
+R-registers may be modified after a function call."
   (declare (type (and unsigned-byte fixnum) reg-index))
   (assert (< reg-index (lightningfn-ffi::fn-jit-r-num)))
   (lightningfn-ffi::fn-jit-r reg-index))
 
 (defun reg-v (reg-index)
-  "Return the callee-save register with index REG-INDEX."
+  "Return the callee-save register with index REG-INDEX.
+V-registers are preserved after a function call."
   (declare (type (and unsigned-byte fixnum) reg-index))
   (assert (< reg-index (lightningfn-ffi::fn-jit-v-num)))
   (lightningfn-ffi::fn-jit-v reg-index))
