@@ -3,6 +3,10 @@
 
 (in-package :lightningfn)
 
+;; initialize liblightning on load. Use WITH-INIT if you want to pass a program name to #'INIT-FN-JIT.
+(eval-when (:load-toplevel)
+  (lightningfn-ffi::init-fn-jit (cffi:null-pointer)))
+
 (defmacro with-init ((&key (progname nil) alloc-function realloc-function free-function) &body body)
   "Call #'LIGHTNINGFN-FFI::INIT-FN-JIT before executing BODY and #'LIGHTNINGFN-FFI::FINISH-FN-JIT after BODY.
 If any of ALLOC-FUNCTION, REALLOC-FUNCTION, or FREE-FUNCTION are non-NIL, they will be passed to #'LIGHTNINGFN-FFI::FN-JIT-SET-MEMORY-FUNCTIONS before anything is executed."
