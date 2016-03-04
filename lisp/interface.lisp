@@ -55,51 +55,73 @@ If any of ALLOC-FUNCTION, REALLOC-FUNCTION, or FREE-FUNCTION are non-NIL, they w
 	     (loop for i below count collect (make-instance 'lightningfn-ffi::jit-state))
 	     (finish-output))))))
 
-#|
-;; Example:
-(lightningfn:with-init ()
-  (let ((jit (make-instance 'lightningfn-ffi::jit-state)))
-    (lightningfn-ffi::fn-jit-prolog jit)
-    (let* ((in (lightningfn-ffi::fn-jit-arg jit))
-	   (r (lightningfn-ffi::fn-jit-r 0)))
-      (lightningfn-ffi::fn-jit-getarg-i jit r in)
-      (lightningfn-ffi::fn-jit-addi jit r r 1)
-      (lightningfn-ffi::fn-jit-retr jit r)
-      (let ((incr (lightningfn-ffi::fn-jit-emit jit)))
-	(cffi:foreign-funcall-pointer incr (:convention :cdecl) :int 5 :int)))))
-|#
+(defparameter *new-state-calls* 0 "The number of calls to #'NEW-STATE after it triggered a normal garbage collection.")
+(defparameter *new-state-max-calls-before-gc* 1000 "The number of calls to #'NEW-STATE before it triggers a normal garbage collection. NIL means normal garbage collection is never initiated.")
+(defparameter *new-state-calls-full* 0 "The number of calls to #'NEW-STATE after it triggered a full garbage collection.")
+(defparameter *new-state-max-calls-before-full-gc* 25000 "The number of calls to #'NEW-STATE before it triggers a full garbage collection. NIL means full garbage collection is never initiated.")
+(flet ((new-state-maybe-gc ()
+	 (incf *new-state-calls*)
+	 (incf *new-state-calls-full*)
+	 (when (and *new-state-max-calls-before-gc* (> *new-state-calls* *new-state-max-calls-before-gc*))
+	   (setf *new-state-calls* 0)
+	   (tg:gc))
+	 (when (and *new-state-max-calls-before-full-gc* (> *new-state-calls-full* *new-state-max-calls-before-full-gc*))
+	   (setf *new-state-calls-full* 0)
+	   (tg:gc :full t))))
+  ;; Rationale for the CLEAR-STATE-MANUALLY parameter: It seems that calling #'LIGHTNINGFN-FFI::FN-JIT-CLEAR-STATE-UNWRAPPED after #'LIGHTNINGFN-FFI::FN-JIT-EMIT has been called (and not calling FN-JIT-CLEAR-STATE-UNWRAPPED in the finalizer, because otherwise there are memory faults) speeds up the "incr" example above quite a bit, from 5.5 needed time to 3.5 needed time (or more than doubles speed on pc1400).
+  (defun new-state (&key (clear-state-manually nil))
+    "Make a new JIT-STATE instance.
+If CLEAR-STATE-MANUALLY is non-NIL, #'CLEAR-STATE must be called manually.
+Automatically triggers a normal garbage collection every *NEW-STATE-MAX-CALLS-BEFORE-GC* calls to #'NEW-STATE, and a full garbage collection every *NEW-STATE-MAX-CALLS-BEFORE-FULL-GC* calls. This is needed for some LISPs."
+    (new-state-maybe-gc)
+    (make-instance 'lightningfn-ffi::jit-state :clear-state-manually clear-state-manually)))
 
-(defun new-state ()
-  "Make a new JIT-STATE instance."
-  (make-instance 'lightningfn-ffi::jit-state))
+(defun clear-state (jit)
+  "This call cleanups any data not required for jit execution.
+Note that it must not be called before any call to #'PRINT-JIT or #'ADDRESS, as this call destroy the GNU lightning intermediate representation.
+This function must not be called twice for a given JIT. If #'NEW-STATE is called with CLEAR-STATE-MANUALLY==NIL, then an equivalent to this function will be called in the garbage collector."
+  (lightningfn-ffi::fn-jit-clear-state-unwrapped (lightningfn-ffi::jit-state-ptr jit)))
 
 (defun reg-r (reg-index)
   "Return the caller-save register with index REG-INDEX."
+  (declare (type (and unsigned-byte fixnum) reg-index))
   (assert (< reg-index (lightningfn-ffi::fn-jit-r-num)))
   (lightningfn-ffi::fn-jit-r reg-index))
 
 (defun reg-v (reg-index)
   "Return the callee-save register with index REG-INDEX."
+  (declare (type (and unsigned-byte fixnum) reg-index))
   (assert (< reg-index (lightningfn-ffi::fn-jit-v-num)))
   (lightningfn-ffi::fn-jit-v reg-index))
 
 (defun reg-f (reg-index)
   "Return the floating-point register with index REG-INDEX."
+  (declare (type (and unsigned-byte fixnum) reg-index))
   (assert (< reg-index (lightningfn-ffi::fn-jit-f-num)))
   (lightningfn-ffi::fn-jit-f reg-index))
 
 (defvar *jit* nil "The global JIT-STATE object.")
 
-(defmacro with-new-state (&body body)
-  "Binds *JIT* to a new JIT-STATE and executes BODY."
-  `(let ((*jit* (new-state)))
-     ,@body))
-
-(defun clear-state ()
-  "This call cleanups any data not required for jit execution.
-Note that it must not be called before any call to #'PRINT or #'ADDRESS, as this call destroy the GNU lightning intermediate representation.
-Note also that it is not required to invoke this call, as it will be done automatically by garbage collection."
-  (lightningfn-ffi::fn-jit-clear-state-raw (lightningfn-ffi::jit-state-ptr *jit*)))
+(defmacro with-new-state (&environment env (&key (clear-state-manually t)) &body body)
+  "Binds *JIT* to a new JIT-STATE and executes BODY.
+CLEAR-STATE-MANUALLY is passed to #'NEW-STATE.
+If CLEAR-STATE-MANUALLY is non-NIL, the BODY is wrapped by an UNWIND-PROTECT form which calls #'CLEAR-STATE on exit. (This means that #'CLEAR-STATE must NOT be called in BODY!)"
+  (let ((clear-state-manually-sym (gensym "CLEAR-STATE-MANUALLY"))
+	(form-prot `(unwind-protect ;prevent memory leak
+			 (progn ,@body)
+		      (clear-state *jit*)))
+	(form-unpr `(progn ,@body)))
+    `(let* ((,clear-state-manually-sym ,clear-state-manually)
+	    (*jit* (new-state :clear-state-manually ,clear-state-manually-sym)))
+       ,(cond
+	 ((eq clear-state-manually nil)
+	  form-unpr)
+	 ((constantp clear-state-manually env)
+	  form-prot)
+	 (t
+	  `(if ,clear-state-manually-sym
+	       ,form-prot
+	       ,form-unpr))))))
 
 ;;; Wrapper generator
 ;; generate wrapper functions for the functions LIGHTNINGFN-FFI::FN-JIT-* that use the global LIGHTNINGFN-FFI::JIT-STATE *JIT*.
@@ -149,23 +171,6 @@ Note also that it is not required to invoke this call, as it will be done automa
 
   (generate-fn-jit-functions))
 
-#|
-Example:
-(lightningfn:with-init ()
-  (lightningfn:with-new-state
-    (lightningfn:prolog)
-    (let* ((in (lightningfn:arg))
-	   (r (lightningfn:reg-r 0)))
-      (lightningfn:getarg-i r in)
-      (lightningfn:addi r r 1)
-      (lightningfn:retr r)
-      (let ((incr (lightningfn:emit)))
-	;;(lightningfn:clear-state) ;#'CLEAR-STATE may not be called twice for an object! (it will be called in the finalizer)
-	(cffi:foreign-funcall-pointer incr (:convention :cdecl) :int 5 :int)))))
-|#
-
-;;;; Convenience macros
-
 (defun unique (list)
   "Return a newly consed list with duplicate elements in LIST removed, and in the same order if first occurrence as in LIST."
   (let ((ht (make-hash-table :test #'eq)))
@@ -175,93 +180,6 @@ Example:
     (let ((u (loop for key being the hash-key in ht collect (cons key (gethash key ht)))))
       (setf u (sort u #'< :key #'cdr))
       (mapcar #'car u))))
-
-(defun imperative-bind-walker (forms)
-  (let ((vars nil))
-    (labels ((set!-detector (form)
-	       ;;(princ *package*)
-	       ;;(format t "form:~A        (" form)
-	       ;;(prog1
-		   (and
-		    ;;  (or (format t "~A " (listp form)) t)
-		    (listp form)
-		    ;;  (or (format t "~A " (= (length form) 3)) t)
-		    (= (length form) 3)
-		    ;;  (or (format t "~A " (intern (string (car form)) *package*)) t)
-		    (eq (intern (string (car form))) (intern "SET!"))
-		    ;;  (or (format t "~A SUCCESS" (symbolp (cadr form))) t)
-		    (symbolp (cadr form)))
-		 ;;(format t ")~%")
-		 ;;)
-	       )
-	     (rec (tree)
-	       (cond
-		 ((atom tree) tree)
-		 (t
-		  (maplist (lambda (x)
-			     ;;(format t "x:~A~%" x)
-			     (let ((head (car x)))
-			       (cond
-				 ((set!-detector head)
-				  (let ((var (cadr head))
-					(value (caddr head)))
-				    (push var vars)
-				    (list 'setf var (car (rec (list value))))))
-				 ((atom head) head)
-				 (t (rec head)))))
-			   tree)))))
-      (let ((body (rec forms)))
-	`(let (,@(unique (nreverse vars))) ,@body)))))
-
-(assert (equal (imperative-bind-walker '((a) (set! x b) (c (set! y (set! d (e))))))
-	       '(let (x y d) (a) (setf x b) (c (setf y (setf d (e)))))))
-
-(defmacro imperative-bind (&body body)
-  "Create new variable bindings of certain variables in BODY.
-Find forms of the form (SETF! variable value) in BODY, and replaces them with normal (SETF variable value).
-The variables are all bound to NIL, and then BODY is executed."
-  (imperative-bind-walker body))
-
-(defmacro with-jit ((&key (progname nil) alloc-function realloc-function free-function) &body body)
-  "Convenience macro calling (WITH-INIT (...) (WITH-NEW-STATE (IMPERATIVE-BIND ,@BODY)))."
-  (let ((progname-sym (gensym "PROGNAME"))
-	(alloc-function-sym (gensym "ALLOC-FUNCTION"))
-	(realloc-function-sym (gensym "REALLOC-FUNCTION"))
-	(free-function-sym (gensym "FREE-FUNCTION")))
-    `(let ((,progname-sym ,progname)
-	   (,alloc-function-sym ,alloc-function)
-	   (,realloc-function-sym ,realloc-function)
-	   (,free-function-sym ,free-function))
-       (with-init (:progname ,progname-sym :alloc-function ,alloc-function-sym :realloc-function ,realloc-function-sym :free-function ,free-function-sym)
-	 (with-new-state
-	   (imperative-bind
-	     ,@body))))))
-
-#|
-Example:
-(lightningfn:with-jit ()
-  (lightningfn:prolog)
-  (set! in (lightningfn:arg))
-  (set! r (lightningfn:reg-r 0))
-  (lightningfn:getarg-i r in)
-  (lightningfn:addi r r 1)
-  (lightningfn:retr r)
-  (set! incr (lightningfn:emit))
-  ;;(lightningfn:clear-state) ;#'CLEAR-STATE may not be called twice for an object! (it will be called in the finalizer)
-  (cffi:foreign-funcall-pointer incr (:convention :cdecl) :int 5 :int))
-
-or when (use-package :lightning)
-(with-jit ()
-  (prolog)
-  (set! in (arg))
-  (set! r (reg-r 0))
-  (getarg-i r in)
-  (addi r r 1)
-  (retr r)
-  (set! incr (emit))
-  ;;(clear-state) ;#'CLEAR-STATE may not be called twice for an object! (it will be called in the finalizer)
-  (cffi:foreign-funcall-pointer incr (:convention :cdecl) :int 5 :int))
-|#
 
 #|
 Symbol name conflicts
@@ -284,46 +202,10 @@ Enter an integer (between 1 and 2): 1
 
 On CLISP:
 
-(USE-PACKAGE (#<PACKAGE LIGHTNINGFN>) #1=#<PACKAGE
-     COMMON-LISP-USER>): 1 name conflicts remain
 Which symbol with name "ADDRESS" should be accessible in #1#?
    [Condition of type SYSTEM::SIMPLE-PACKAGE-ERROR]
 
-(USE-PACKAGE (#<PACKAGE LIGHTNINGFN>) #1=#<PACKAGE
-     COMMON-LISP-USER>): 1 name conflicts remain
-Which symbol with name "SET!" should be accessible in #1#?
-   [Condition of type SYSTEM::SIMPLE-PACKAGE-ERROR]
+Restarts:
+ 0: [LIGHTNINGFN] #<PACKAGE LIGHTNINGFN>
+ 1: [COMMON-LISP-USER] #<PACKAGE COMMON-LISP-USER>
 |#
-
-#|
-(load "/home/toni/quicklisp/setup.lisp")
-(ql:quickload :lightningfn)
-(ql:quickload :utils)
-|#
-
-#|
-;; defining and calling a callback
-(cffi:defcallback callback1 :int ((a :int) (b :float) (c :float))
-  (format t "a:~A b:~A c:~A~%" a b c)
-  (let ((res (round (+ a (* b c)))))
-    (format t "res:~A~%" res)
-    res))
-(lightningfn:with-jit ()
-  (lightningfn:prolog)
-  (set! in (lightningfn:arg))
-  (set! r (lightningfn:reg-r 0))
-  (lightningfn:getarg-i r in)
-  (lightningfn:addi r r 1)
-  (lightningfn:prepare)
-  (lightningfn:pushargr r)
-  (lightningfn:pushargi-f 3.50)
-  (lightningfn:pushargi-f 10.2)
-  (lightningfn:finishi (cffi:callback callback1))
-  (lightningfn:retval r)
-  (lightningfn:retr r)
-  (lightningfn:epilog)
-  (set! incr (lightningfn:emit))
-  (cffi:foreign-funcall-pointer incr (:convention :cdecl) :int 5 :int))
-|#
-
-;; TODO: It seems that calling #'LIGHTNINGFN-FFI::FN-JIT-CLEAR-STATE-RAW after #'LIGHTNINGFN-FFI::FN-JIT-EMIT has been called (and not calling FN-JIT-CLEAR-STATE-RAW in the finalizer, because otherwise there are memory faults) speeds up the "incr" example above quite a bit, from 5.5 needed time to 3.5 needed time. I should change the interface by writing a macro that automates that, and then exporting that macro and remove the other exported macros.
