@@ -4,6 +4,10 @@
 
 (defparameter *clear-state-manually* t)
 
+(defstruct jitfun
+  jit
+  fun)
+
 (defun make-incr ()
   (flet ((make-incr ()
 	   (lightningfn:with-new-state (:clear-state-manually *clear-state-manually*)
@@ -15,19 +19,20 @@
 	       (lightningfn:addi r r 1)
 	       (lightningfn:retr r)
 	       (lightningfn:epilog)
-	       (lightningfn:emit)))))
+	       (make-jitfun :jit lightningfn:*jit*
+			    :fun (lightningfn:emit))))))
     (let ((incr (make-incr)))
       (lambda (x)
-	(cffi:foreign-funcall-pointer incr (:convention :cdecl) :int x :int) ;use :LONG here for 64-bit inputs
+	(cffi:foreign-funcall-pointer (jitfun-fun incr) (:convention :cdecl) :int x :int) ;use :LONG here for 64-bit inputs
 	))))
 
 (defun incr (x)
   (funcall (make-incr) x))
 
-;; TODO: FIXME: The following gives an unhandled memory fault on pc1400 and SBCL:
+;; The following gave an unhandled memory fault on pc1400 and SBCL, which was due to the lightningfn:*jit* variable being garbage-collected eventually, which also garbage-collected the generated function pointer. Now, we don't return the generated function pointer directly, but wrap it in a JITFUN-instance.
 ;; (let ((incr (make-incr)))
 ;;   (utils:timesec (lambda () (funcall incr 5))))
-;; But this doesn't:
+;; But this didn't:
 ;; (let ((incr (make-incr)))
 ;;   (loop do (funcall incr 5)))
 
