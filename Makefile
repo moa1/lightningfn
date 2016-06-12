@@ -13,11 +13,18 @@ lightningfn.h: lightningfn.c head.lightningfn.h
 liblightningfn.so: lightningfn.c
 	gcc -I ../lightning-2.1.0/include/ -shared -o liblightningfn.so ./lightningfn.c ../lightning-2.1.0/lib/.libs/liblightning.a
 
+# this target is for when liblightning is compiled with --enable-disassembler
+liblightningfn-disassembler.so: lightningfn.c
+	gcc -I ../lightning-2.1.0/include/ -lbfd -lopcodes -shared -o liblightningfn.so ./lightningfn.c ../lightning-2.1.0/lib/.libs/liblightning.a
+
 examples: examples.c lightningfn.h
 	gcc -l lightning -L ../lightning-2.1.0/lib/.libs/ -I ../lightning-2.1.0/include/ -o examples examples.c
 
 examplesfn: examplesfn.c lightningfn.h
 	gcc -I . -L . -l lightningfn -o examplesfn examplesfn.c
+
+examplesfn_indirect: examplesfn_indirect.c lightningfn.h
+	gcc -I . -L . -l lightningfn -o examplesfn_indirect examplesfn_indirect.c
 
 clean:
 	rm lightningfn.h lightningfn.c liblightningfn.so lightningfn.h.body examples examplesfn
