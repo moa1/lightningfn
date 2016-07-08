@@ -10,7 +10,7 @@ lightningfn.h: lightningfn.c head.lightningfn.h
 
 #for linking to the shared library lightning.so: gcc -I ~/soft/lightning-2.1.0/include/ -L ~/soft/lightning-2.1.0/lib/.libs/ -llightning -shared -o lightningfn.so ./lightningfn.c
 # on 64-bit, compile lightning with "./configure --with-pic", and compile lightningfn with --fPIC: gcc -fPIC -I ../lightning-2.1.0/include/ -shared -o liblightningfn.so ./lightningfn.c ../lightning-2.1.0/lib/.libs/liblightning.a
-liblightningfn.so: lightningfn.c
+liblightningfn.so: lightningfn.c ../lightning-2.1.0/lib/.libs/liblightning.a
 	gcc -I ../lightning-2.1.0/include/ -shared -o liblightningfn.so ./lightningfn.c ../lightning-2.1.0/lib/.libs/liblightning.a
 
 # this target is for when liblightning is compiled with --enable-disassembler
@@ -27,4 +27,4 @@ examplesfn_indirect: examplesfn_indirect.c lightningfn.h
 	gcc -I . -L . -l lightningfn -o examplesfn_indirect examplesfn_indirect.c
 
 clean:
-	rm lightningfn.h lightningfn.c liblightningfn.so lightningfn.h.body examples examplesfn
+	rm -f lightningfn.h lightningfn.c liblightningfn.so lightningfn.h.body examples examplesfn

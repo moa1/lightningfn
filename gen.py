@@ -122,6 +122,9 @@ print """
 void fn_jit_putargi(jit_state_t *_jit, jit_word_t u, jit_node_t *v) {
 	_jit_putargi(_jit, u, v);
 }
+void fn_jit_putargi_p(jit_state_t *_jit, jit_pointer_t u, jit_node_t *v) {
+	_jit_putargi(_jit, (jit_word_t)u, v);
+}
 void fn_jit_putargi_f(jit_state_t *_jit, jit_float32_t u, jit_node_t *v) {
 	_jit_putargi_d(_jit, u, v);
 }
@@ -144,6 +147,9 @@ void fn_jit_pushargr(jit_state_t *_jit, jit_gpr_t u) {
 void fn_jit_pushargi(jit_state_t *_jit, jit_word_t u) {
 	_jit_pushargi(_jit, u);
 }
+void fn_jit_pushargi_p(jit_state_t *_jit, jit_pointer_t u) {
+	_jit_pushargi(_jit, (jit_word_t)u);
+}
 void fn_jit_finishr(jit_state_t *_jit, jit_gpr_t r0) {
 	_jit_finishr(_jit, r0);
 }
@@ -158,6 +164,9 @@ void fn_jit_retr(jit_state_t *_jit, jit_gpr_t u) {
 }
 void fn_jit_reti(jit_state_t *_jit, jit_word_t u) {
 	_jit_reti(_jit, u);
+}
+void fn_jit_reti_p(jit_state_t *_jit, jit_pointer_t u) {
+	_jit_reti(_jit, (jit_word_t)u);
 }"""
 
 

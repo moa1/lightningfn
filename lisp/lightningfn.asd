@@ -11,4 +11,5 @@
    (:file "library")
    (:file "ffi")
    (:file "interface")
+   (:file "lifun")
    ))
