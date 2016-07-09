@@ -60,9 +60,9 @@ If any of ALLOC-FUNCTION, REALLOC-FUNCTION, or FREE-FUNCTION are non-NIL, they w
 	     (finish-output))))))
 
 (defparameter *new-state-calls* 0 "The number of calls to #'NEW-STATE after it triggered a normal garbage collection.")
-(defparameter *new-state-max-calls-before-gc* 1000 "The number of calls to #'NEW-STATE before it triggers a normal garbage collection. NIL means normal garbage collection is never initiated.")
+(defparameter *new-state-max-calls-before-gc* 1000 "The number of calls to #'NEW-STATE before it triggers a normal garbage collection. NIL means normal garbage collection is never initiated. When debugging :CLEAR-STATE-MANUALLY==T, it might be useful to set this to 1.")
 (defparameter *new-state-calls-full* 0 "The number of calls to #'NEW-STATE after it triggered a full garbage collection.")
-(defparameter *new-state-max-calls-before-full-gc* 25000 "The number of calls to #'NEW-STATE before it triggers a full garbage collection. NIL means full garbage collection is never initiated.")
+(defparameter *new-state-max-calls-before-full-gc* 25000 "The number of calls to #'NEW-STATE before it triggers a full garbage collection. NIL means full garbage collection is never initiated. When debugging :CLEAR-STATE-MANUALLY==T, it might be useful to set this to 1.")
 (flet ((new-state-maybe-gc ()
 	 (incf *new-state-calls*)
 	 (incf *new-state-calls-full*)
