@@ -41,35 +41,41 @@
 (defctype jit-fpr-t jit-int32-t)
 
 (defcstruct (jit-node-t :size 0))
-;;TODO: remove when not needed anymore. (defcstruct (jit-state-t :size 11000)) ;the size was determined by doing "free"; sbcl --eval "(loop for i below 10000 do (lightningfn-ffi::fn-jit-new-state))"; "free"
+
 (defclass jit-state ()
   ((ptr :initarg :ptr :initform (lightningfn-ffi::fn-jit-new-state) :reader jit-state-ptr :documentation "Foreign pointer from fn-jit-new-state")
    (clear-state-manually :initarg :clear-state-manually :initform nil :reader jit-state-clear-state-manually :type boolean :documentation "If NIL, #'FN-JIT-CLEAR-STATE-UNWRAPPED and FN-JIT-DESTROY-STATE-UNWRAPPED are called when the JIT-STATE is garbage collected.
 If T, only FN-JIT-DESTROY-STATE-UNWRAPPED is called when the JIT-STATE is garbage collected.
-If :NO-GC, nothing is called when the JIT-STATE is garbage collected."))
+If :NO-GC, nothing is called when the JIT-STATE is garbage collected.")
+   ;;(debug :initarg :debug :initform nil :reader jit-state-debug)
+   )
   (:documentation "jit state object (containing a pointer to jit_state_t)"))
 (define-foreign-type jit-state-t-ptr ()
   ()
   (:actual-type :pointer)
   (:simple-parser jit-state))
+(defun finalize-jit-state-t-ptr (ptr clear-state-manually)
+  "Note that if you call this function manually, the meaning for CLEAR-STATE-MANUALLY must be swapped for NIL and :NO-GC, because this function is intended for the automatic garbage collector."
+  (ecase clear-state-manually
+    ((nil)
+     (lightningfn-ffi::fn-jit-clear-state-unwrapped ptr)
+     (lightningfn-ffi::fn-jit-destroy-state-unwrapped ptr))
+    ((t)
+     (lightningfn-ffi::fn-jit-destroy-state-unwrapped ptr))
+    ((:t-inverted)
+     (lightningfn-ffi::fn-jit-clear-state-unwrapped ptr))
+    ((:no-gc))))
 (defmethod initialize-instance :after ((self jit-state) &key)
   (let ((ptr (jit-state-ptr self))
 	(clear-state-manually (jit-state-clear-state-manually self)))
-    ;;(format t "initialize-instance self:~A ptr:~A clear-state-manually:~A~%" self ptr clear-state-manually)
-    (cond
-      ((eq clear-state-manually nil)
+    ;;(format t "initialize-instance self:~A ptr:~A clear-state-manually:~A debug:~A~%" self ptr clear-state-manually (jit-state-debug self))
+    (ecase clear-state-manually
+      ((t nil)
        (trivial-garbage:finalize
 	self
 	(lambda ()
-	  (lightningfn-ffi::fn-jit-clear-state-unwrapped ptr)
-	  (lightningfn-ffi::fn-jit-destroy-state-unwrapped ptr))))
-      ((eq clear-state-manually t)
-       (trivial-garbage:finalize
-	self
-	(lambda ()
-	  (lightningfn-ffi::fn-jit-destroy-state-unwrapped ptr))))
-       ((eq clear-state-manually :no-gc))
-       (t (error "CLEAR-STATE-MANUALLY must be either NIL, T, or :NO-GC.")))))
+	  (finalize-jit-state-t-ptr ptr clear-state-manually))))
+      ((:no-gc)))))
 (defmethod translate-from-foreign (ptr (type jit-state))
   (initialize-instance 'jit-state :ptr ptr))
 (defmethod translate-to-foreign (jit (type jit-state-t-ptr))

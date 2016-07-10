@@ -17,6 +17,8 @@ Author: Anton Moll")
    ;; interface.lisp
    #:with-init
    #:new-state
+   #:finalize-state
+   #:clear-state
    #:reg-r
    #:reg-v
    #:reg-f

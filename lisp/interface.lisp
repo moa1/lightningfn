@@ -73,12 +73,31 @@ If any of ALLOC-FUNCTION, REALLOC-FUNCTION, or FREE-FUNCTION are non-NIL, they w
 	   (setf *new-state-calls-full* 0)
 	   (tg:gc :full t))))
   ;; Rationale for the CLEAR-STATE-MANUALLY parameter: It seems that calling #'LIGHTNINGFN-FFI::FN-JIT-CLEAR-STATE-UNWRAPPED after #'LIGHTNINGFN-FFI::FN-JIT-EMIT has been called (and not calling FN-JIT-CLEAR-STATE-UNWRAPPED in the finalizer, because otherwise there are memory faults) speeds up the "incr" example above quite a bit, from 5.5 needed time to 3.5 needed time (or more than doubles speed on pc1400).
-  (defun new-state (&key (clear-state-manually nil))
+  (defun new-state (&key
+		      (clear-state-manually nil)
+		      ;;(debug nil)
+		      )
     "Make a new JIT-STATE instance.
-If CLEAR-STATE-MANUALLY is non-NIL, #'CLEAR-STATE must be called manually.
+If CLEAR-STATE-MANUALLY is anything other than NIL, you must call #'FINALIZE-STATE.
 Automatically triggers a normal garbage collection every *NEW-STATE-MAX-CALLS-BEFORE-GC* calls to #'NEW-STATE, and a full garbage collection every *NEW-STATE-MAX-CALLS-BEFORE-FULL-GC* calls. This is needed for some LISPs."
     (new-state-maybe-gc)
-    (make-instance 'lightningfn-ffi::jit-state :clear-state-manually clear-state-manually)))
+    (make-instance 'lightningfn-ffi::jit-state
+		   :clear-state-manually clear-state-manually
+		   ;;:debug debug
+		   )))
+
+(defun finalize-state (jit)
+  "Manually free JIT allocated by NEW-STATE."
+  (declare (type lightningfn-ffi::jit-state jit))
+  (let ((ptr (lightningfn-ffi::jit-state-ptr jit)))
+    ;; note that the meaning of CLEAR-STATE-MANUALLY must be inverted here with respect to FINALIZE-JIT-STATE-T-PTR, because CLEAR-STATE-MANUALLY here is specified like for NEW-STATE, or (MAKE-INSTANCE 'JIT-STATE :PTR ... :CLEAR-STATE-MANUALLY ...).
+    (ecase (lightningfn-ffi::jit-state-clear-state-manually jit)
+      ((nil)
+       (lightningfn-ffi::finalize-jit-state-t-ptr ptr :no-gc))
+      ((t)
+       (lightningfn-ffi::fn-jit-clear-state-unwrapped ptr))
+      ((:no-gc)
+       (lightningfn-ffi::finalize-jit-state-t-ptr ptr nil)))))
 
 (defun clear-state (jit)
   "This call cleanups any data not required for jit execution.
@@ -111,11 +130,11 @@ V-registers are preserved after a function call."
 (defmacro with-new-state (&environment env (&key (clear-state-manually t)) &body body)
   "Binds *JIT* to a new JIT-STATE and executes BODY.
 CLEAR-STATE-MANUALLY is passed to #'NEW-STATE.
-If CLEAR-STATE-MANUALLY is non-NIL, the BODY is wrapped by an UNWIND-PROTECT form which calls #'CLEAR-STATE on exit. (This means that #'CLEAR-STATE must NOT be called in BODY!)"
+If CLEAR-STATE-MANUALLY is anything other than NIL, the BODY is wrapped by an UNWIND-PROTECT form which calls #'FINALIZE-STATE on exit. (This means that #'CLEAR-STATE or #'FINALIZE-STATE must NOT be called in BODY!)"
   (let ((clear-state-manually-sym (gensym "CLEAR-STATE-MANUALLY"))
 	(form-prot `(unwind-protect ;prevent memory leak
 			 (progn ,@body)
-		      (clear-state *jit*)))
+		      (finalize-state *jit*)))
 	(form-unpr `(progn ,@body)))
     `(let* ((,clear-state-manually-sym ,clear-state-manually)
 	    (*jit* (new-state :clear-state-manually ,clear-state-manually-sym)))
